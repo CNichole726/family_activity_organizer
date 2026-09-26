@@ -178,18 +178,18 @@
       <form id="activity-form" class="space-y-4">
         <input type="hidden" id="item-id" value="" />
         
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Day of Week</label>
-          <select id="item-day" required class="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-sky-500">
-            <option value="Sunday">Sunday</option>
-            <option value="Monday">Monday</option>
-            <option value="Tuesday">Tuesday</option>
-            <option value="Wednesday">Wednesday</option>
-            <option value="Thursday">Thursday</option>
-            <option value="Friday">Friday</option>
-            <option value="Saturday">Saturday</option>
-          </select>
-        </div>
+        <fieldset id="item-days-fieldset">
+          <legend class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Day(s) of Week</legend>
+          <div class="grid grid-cols-2 gap-2 text-sm">
+            <label class="flex items-center gap-2"><input type="checkbox" name="item-days" value="Sunday" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" /> Sunday</label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="item-days" value="Monday" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" /> Monday</label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="item-days" value="Tuesday" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" /> Tuesday</label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="item-days" value="Wednesday" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" /> Wednesday</label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="item-days" value="Thursday" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" /> Thursday</label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="item-days" value="Friday" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" /> Friday</label>
+            <label class="flex items-center gap-2"><input type="checkbox" name="item-days" value="Saturday" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500" /> Saturday</label>
+          </div>
+        </fieldset>
 
         <div>
           <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Time / Section</label>
@@ -274,7 +274,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // Application ID Configuration
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'family-organizer-app';
@@ -494,6 +494,13 @@
     const pwaModalEl = document.getElementById("pwa-modal");
     const formEl = document.getElementById("activity-form");
 
+    function setSelectedDays(days, disabled = false) {
+      document.querySelectorAll('input[name="item-days"]').forEach((checkbox) => {
+        checkbox.checked = days.includes(checkbox.value);
+        checkbox.disabled = disabled;
+      });
+    }
+
     // Authenticate with Firebase
     async function initAuth() {
       try {
@@ -701,7 +708,7 @@
 
       document.getElementById("modal-title").textContent = "Edit Activity";
       document.getElementById("item-id").value = item.id;
-      document.getElementById("item-day").value = item.day;
+      setSelectedDays([item.day], true);
       document.getElementById("item-time").value = item.time || "";
       document.getElementById("item-title").value = item.title;
       document.getElementById("item-notes").value = item.notes || "";
@@ -713,11 +720,15 @@
     // Save Activity Form Submission
     formEl.addEventListener("submit", async (e) => {
       e.preventDefault();
-      
-      const id = document.getElementById("item-id").value || `act-${Date.now()}`;
-      const newItem = {
-        id: id,
-        day: document.getElementById("item-day").value,
+      const selectedDays = Array.from(document.querySelectorAll('input[name="item-days"]:checked'))
+        .map((checkbox) => checkbox.value);
+      if (selectedDays.length === 0) {
+        alert("Select at least one day for this activity.");
+        return;
+      }
+
+      const existingId = document.getElementById("item-id").value;
+      const activity = {
         time: document.getElementById("item-time").value,
         title: document.getElementById("item-title").value,
         notes: document.getElementById("item-notes").value,
@@ -726,16 +737,23 @@
       };
 
       try {
-        const itemDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'activities', id);
-        await setDoc(itemDocRef, newItem, { merge: true });
-      } catch (err) {
-        const existingIdx = activitiesData.findIndex(i => i.id === id);
-        if (existingIdx >= 0) {
-          activitiesData[existingIdx] = newItem;
+        if (existingId) {
+          const newItem = { ...activity, id: existingId, day: selectedDays[0] };
+          const itemDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'activities', existingId);
+          await setDoc(itemDocRef, newItem, { merge: true });
         } else {
-          activitiesData.push(newItem);
+          const batch = writeBatch(db);
+          selectedDays.forEach((day) => {
+            const id = `act-${crypto.randomUUID()}`;
+            const itemDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'activities', id);
+            batch.set(itemDocRef, { ...activity, id, day });
+          });
+          await batch.commit();
         }
-        renderActivities();
+      } catch (err) {
+        console.error("Error saving activity:", err);
+        alert("Unable to save the activity. Check your connection and try again.");
+        return;
       }
 
       modalEl.classList.add("hidden");
@@ -747,7 +765,7 @@
       formEl.reset();
       document.getElementById("modal-title").textContent = "Add New Activity";
       document.getElementById("item-id").value = "";
-      document.getElementById("item-day").value = currentDayFilter === "All" ? "Sunday" : currentDayFilter;
+      setSelectedDays([currentDayFilter === "All" ? "Sunday" : currentDayFilter]);
       modalEl.classList.remove("hidden");
     });
 
