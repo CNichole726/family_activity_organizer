@@ -83,24 +83,11 @@
         </div>
       </div>
 
-      <!-- Right Actions: Active Profile & Sync Status -->
+      <!-- Sync Status -->
       <div class="flex items-center gap-3">
         <div id="sync-status" class="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
           <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
           <span>Connecting...</span>
-        </div>
-
-        <div class="relative inline-block">
-          <select id="profile-select" class="appearance-none bg-slate-100 border border-slate-200 text-slate-700 text-sm font-semibold py-1.5 pl-3 pr-8 rounded-xl cursor-pointer hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
-            <option value="Mom/Grandma">👵 Gaga</option>
-            <option value="Barrett">👦 Barrett</option>
-            <option value="Harlan">🧒 Harlan</option>
-            <option value="Waylon">👶 Waylon</option>
-            <option value="Parent">🧑‍🤝‍🧑 Parent View</option>
-          </select>
-          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
-            <i data-lucide="chevron-down" class="w-4 h-4"></i>
-          </div>
         </div>
 
         <button id="pwa-info-btn" title="Add to Home Screen" class="p-2 text-slate-500 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition">
@@ -127,7 +114,7 @@
 
       <!-- Day Pills -->
       <div class="flex gap-2 overflow-x-auto pb-2 custom-scrollbar text-sm font-medium">
-        <button data-day="All" class="day-tab px-4 py-2 rounded-xl border border-sky-600 bg-sky-600 text-white whitespace-nowrap transition shadow-sm">
+        <button data-day="All" class="day-tab px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 whitespace-nowrap transition">
           📅 All Days
         </button>
         <button data-day="Sunday" class="day-tab px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 whitespace-nowrap transition">
@@ -494,7 +481,7 @@
     ];
 
     // State Variables
-    let currentDayFilter = "All";
+    let currentDayFilter = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][new Date().getDay()];
     let activitiesData = [];
     let currentUser = null;
 
@@ -786,6 +773,13 @@
     // App Initialization Lifecycle
     window.addEventListener("DOMContentLoaded", async () => {
       lucide.createIcons();
+      const activeDayTab = document.querySelector(`.day-tab[data-day="${currentDayFilter}"]`);
+      if (activeDayTab) {
+        document.querySelectorAll(".day-tab").forEach(tab => {
+          tab.className = "day-tab px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 whitespace-nowrap transition";
+        });
+        activeDayTab.className = "day-tab px-4 py-2 rounded-xl border border-sky-600 bg-sky-600 text-white whitespace-nowrap transition shadow-sm";
+      }
       await initAuth();
       onAuthStateChanged(auth, (user) => {
         currentUser = user;
