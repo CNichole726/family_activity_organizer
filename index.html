@@ -92,7 +92,7 @@
 
         <div class="relative inline-block">
           <select id="profile-select" class="appearance-none bg-slate-100 border border-slate-200 text-slate-700 text-sm font-semibold py-1.5 pl-3 pr-8 rounded-xl cursor-pointer hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500 transition">
-            <option value="Mom/Grandma">👵 Mom / Grandma</option>
+            <option value="Mom/Grandma">👵 Gaga</option>
             <option value="Barrett">👦 Barrett</option>
             <option value="Harlan">🧒 Harlan</option>
             <option value="Waylon">👶 Waylon</option>
@@ -302,14 +302,39 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
 
+    const weeklyBarrettChores = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+      .flatMap((day) => {
+        const dayId = day.slice(0, 3).toLowerCase();
+        return [
+          {
+            id: `${dayId}-barrett-morning-feeding`,
+            day,
+            time: "Morning",
+            title: "Barrett - feed dogs",
+            notes: "",
+            completed: false,
+            category: "chores"
+          },
+          {
+            id: `${dayId}-barrett-after-school-feeding`,
+            day,
+            time: "After School",
+            title: "Barrett - feed dogs and fish",
+            notes: "",
+            completed: false,
+            category: "chores"
+          }
+        ];
+      });
+
     // Initial Default Seed Data
     const initialSchedule = [
       {
         id: "sun-1",
         day: "Sunday",
         time: "11:30 AM",
-        title: "Be in Hillsboro",
-        notes: "Needs: baseball bag + uniform",
+        title: "Be in Hillsboro with uniforms on",
+        notes: "Need Barrett's baseball bag",
         completed: false,
         category: "sports"
       },
@@ -335,7 +360,7 @@
         id: "mon-3",
         day: "Monday",
         time: "After School",
-        title: "B homework: reading",
+        title: "Barrett - reading and fill out log",
         notes: "20 mins reading log",
         completed: false,
         category: "school"
@@ -362,7 +387,7 @@
         id: "tue-2",
         day: "Tuesday",
         time: "After School",
-        title: "B reading homework",
+        title: "Barrett - reading and fill out log",
         notes: "",
         completed: false,
         category: "school"
@@ -407,7 +432,7 @@
         id: "wed-2",
         day: "Wednesday",
         time: "After School",
-        title: "B reading homework",
+        title: "Barrett - reading and fill out log",
         notes: "",
         completed: false,
         category: "school"
@@ -443,11 +468,21 @@
         id: "thu-2",
         day: "Thursday",
         time: "After School",
-        title: "B reading homework",
+        title: "Barrett - reading and fill out log",
         notes: "",
         completed: false,
         category: "school"
-      }
+      },
+      {
+        id: "fri-barrett-reading-log",
+        day: "Friday",
+        time: "After School",
+        title: "Barrett - reading and fill out log",
+        notes: "",
+        completed: false,
+        category: "school"
+      },
+      ...weeklyBarrettChores
     ];
 
     // State Variables
