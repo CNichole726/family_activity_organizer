@@ -283,13 +283,12 @@
     const firebaseConfig = typeof __firebase_config !== 'undefined' 
       ? JSON.parse(__firebase_config) 
       : {
-          // Public demo config fallback for sandbox preview execution
-          apiKey: "AIzaSyDemoKeyForPublicTestingOnly",
-          authDomain: "family-app.firebaseapp.com",
-          projectId: "family-app",
-          storageBucket: "family-app.appspot.com",
-          messagingSenderId: "1234567890",
-          appId: "1:1234567890:web:abcdef123456"
+          apiKey: "AIzaSyAa4ICBzJ_pVMsCcEiin7Z7JWy8SqUcGPg",
+          authDomain: "vacation-week-plan.firebaseapp.com",
+          projectId: "vacation-week-plan",
+          storageBucket: "vacation-week-plan.firebasestorage.app",
+          messagingSenderId: "122619357624",
+          appId: "1:122619357624:web:52d703475a5abbd92d074d"
         };
 
     // Initialize Firebase Services
@@ -494,6 +493,17 @@
     const pwaModalEl = document.getElementById("pwa-modal");
     const formEl = document.getElementById("activity-form");
 
+    function showScheduleError(message) {
+      activitiesListEl.innerHTML = "";
+      const errorMessage = document.createElement("p");
+      errorMessage.className = "text-rose-700 font-medium text-sm";
+      errorMessage.textContent = message;
+      const errorCard = document.createElement("div");
+      errorCard.className = "text-center py-12 px-4 bg-white rounded-2xl border border-rose-200";
+      errorCard.append(errorMessage);
+      activitiesListEl.append(errorCard);
+    }
+
     function setSelectedDays(days, disabled = false) {
       document.querySelectorAll('input[name="item-days"]').forEach((checkbox) => {
         checkbox.checked = days.includes(checkbox.value);
@@ -503,14 +513,10 @@
 
     // Authenticate with Firebase
     async function initAuth() {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) {
-        console.warn("Auth warning:", err);
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
       }
     }
 
@@ -532,6 +538,7 @@
         }
       } catch (err) {
         console.error("Error seeding initial data:", err);
+        showScheduleError("Unable to initialize the shared schedule. Check Firestore access and try refreshing.");
       }
     }
 
@@ -563,13 +570,8 @@
       }, (error) => {
         console.error("Firestore listener error:", error);
         statusEl.className = "flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200";
-        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Offline Mode</span>`;
-        
-        // Fallback to local memory if network fails
-        if (activitiesData.length === 0) {
-          activitiesData = [...initialSchedule];
-          renderActivities();
-        }
+        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Sync Error</span>`;
+        showScheduleError(`Unable to load shared activities: ${error.message}`);
       });
     }
 
@@ -680,12 +682,8 @@
           });
         }
       } catch (err) {
-        // Fallback local update
-        const item = activitiesData.find(i => i.id === id);
-        if (item) {
-          item.completed = newState;
-          renderActivities();
-        }
+        console.error("Error updating activity:", err);
+        alert("Unable to update the shared activity. Check your connection and try again.");
       }
     };
 
@@ -696,8 +694,8 @@
         const itemDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'activities', id);
         await deleteDoc(itemDocRef);
       } catch (err) {
-        activitiesData = activitiesData.filter(i => i.id !== id);
-        renderActivities();
+        console.error("Error deleting activity:", err);
+        alert("Unable to delete the shared activity. Check your connection and try again.");
       }
     };
 
@@ -752,7 +750,7 @@
         }
       } catch (err) {
         console.error("Error saving activity:", err);
-        alert("Unable to save the activity. Check your connection and try again.");
+        alert(`Unable to save the activity: ${err.message}`);
         return;
       }
 
@@ -798,10 +796,21 @@
         });
         activeDayTab.className = "day-tab px-4 py-2 rounded-xl border border-sky-600 bg-sky-600 text-white whitespace-nowrap transition shadow-sm";
       }
-      await initAuth();
+      try {
+        await initAuth();
+      } catch (error) {
+        console.error("Firebase authentication error:", error);
+        statusEl.className = "flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200";
+        statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span><span>Sign-in Error</span>`;
+        showScheduleError("Unable to connect to the shared schedule. Anonymous sign-in must be enabled in Firebase Authentication.");
+        return;
+      }
       onAuthStateChanged(auth, (user) => {
         currentUser = user;
         subscribeToData();
+      }, (error) => {
+        console.error("Firebase auth state error:", error);
+        showScheduleError("Unable to confirm sign-in for the shared schedule. Try refreshing.");
       });
     });
   </script>

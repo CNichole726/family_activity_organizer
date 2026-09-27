@@ -1,0 +1,67 @@
+rules_version = '2';
+
+// Assumed data model:
+// Collection: artifacts/{appId}/public/data/activities
+// Document ID: activity ID, equal to the document's id field.
+// Fields: id/day/time/title/notes/category (strings), completed (boolean).
+// All fields are required; no user-specific or private data is stored here.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+        (isAuthenticated() && request.resource.data.uid == request.auth.uid);
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == resource.data.uid;
+    }
+
+    function isValidActivity(data, activityId) {
+      return data.keys().hasAll([
+          'id', 'day', 'time', 'title', 'notes', 'category', 'completed'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'day', 'time', 'title', 'notes', 'category', 'completed'
+        ]) &&
+        data.id is string &&
+        data.id == activityId &&
+        data.id.size() <= 128 &&
+        data.day is string &&
+        data.day in ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] &&
+        data.time is string &&
+        data.time.size() <= 80 &&
+        data.title is string &&
+        data.title.size() > 0 &&
+        data.title.size() <= 200 &&
+        data.notes is string &&
+        data.notes.size() <= 500 &&
+        data.category is string &&
+        data.category in ['general', 'sports', 'school', 'dinner', 'chores'] &&
+        data.completed is bool;
+    }
+
+    match /artifacts/{appId}/public/data/activities/{activityId} {
+      allow read, delete: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        uidUnchanged() &&
+        isValidActivity(request.resource.data, activityId);
+      allow update: if isAuthenticated() &&
+        uidNotModified() &&
+        isValidActivity(request.resource.data, activityId);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
